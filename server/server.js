@@ -23,7 +23,7 @@ function generateToken() {
 
 function authMiddleware(req, res, next) {
   // Allow login endpoint
-  if (req.path === '/api/auth/login' || req.path === '/api/auth/check') return next();
+  if (req.path === '/auth/login' || req.path === '/auth/check') return next();
   
   // Check for token in header or cookie
   const token = req.headers['x-auth-token'] || req.query.token;
@@ -43,7 +43,7 @@ function authMiddleware(req, res, next) {
 }
 
 // Login endpoint
-app.post('/api/auth/login', (req, res) => {
+app.post('/auth/login', (req, res) => {
   const { username, password } = req.body;
   
   if (username === ADMIN_USER && password === ADMIN_PASS) {
@@ -58,7 +58,7 @@ app.post('/api/auth/login', (req, res) => {
   }, 1000);
 });
 
-app.get('/api/auth/check', (req, res) => {
+app.get('/auth/check', (req, res) => {
   const token = req.headers['x-auth-token'];
   if (token && activeSessions.has(token)) {
     const session = activeSessions.get(token);
