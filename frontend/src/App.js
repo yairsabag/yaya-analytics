@@ -1,19 +1,113 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from "recharts";
-import { Bell, List, Calendar, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Search, Mic, Image, DollarSign, Activity, Eye, ArrowUp, ArrowDown, Zap, Shield, MessageCircle, BarChart3, RefreshCw, Wifi, WifiOff, Apple, Globe } from "lucide-react";
+import { Bell, List, Calendar, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Search, Mic, Image, DollarSign, Activity, Eye, ArrowUp, ArrowDown, Zap, Shield, MessageCircle, BarChart3, RefreshCw, Wifi, WifiOff, Apple, Globe, Lock, LogOut } from "lucide-react";
 
 // ─── API Configuration ───────────────────────
 const API_BASE = window.location.hostname === "localhost" ? "http://localhost:3001/api" : "/api";
 
+const getToken = () => sessionStorage.getItem("yaya_token");
+const setToken = (t) => sessionStorage.setItem("yaya_token", t);
+const clearToken = () => sessionStorage.removeItem("yaya_token");
+
 const apiFetch = async (endpoint) => {
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`);
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      headers: { "x-auth-token": getToken() || "" },
+    });
+    if (res.status === 401) {
+      clearToken();
+      window.location.reload();
+      return null;
+    }
     if (!res.ok) throw new Error(`API ${res.status}`);
     return await res.json();
   } catch (err) {
     console.error(`API Error [${endpoint}]:`, err);
     return null;
   }
+};
+
+// ─── Login Screen ────────────────────────────
+const LoginScreen = ({ onLogin }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        setToken(data.token);
+        onLogin(data.token);
+      } else {
+        setError("Invalid username or password");
+      }
+    } catch (err) {
+      setError("Cannot connect to server");
+    }
+    setLoading(false);
+  };
+
+  const C = { bg: "#0a0e17", surface: "#111827", border: "#1e293b", accent: "#06b6d4", text: "#e2e8f0", textMuted: "#94a3b8", textDim: "#64748b", danger: "#ef4444", pro: "#a855f7" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={{ width: 380, padding: 40, background: C.surface, borderRadius: 20, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16, margin: "0 auto 16px",
+            background: `linear-gradient(135deg, ${C.accent} 0%, ${C.pro} 100%)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 26, fontWeight: 800, color: "#000",
+          }}>Y</div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Yaya Analytics</h1>
+          <p style={{ fontSize: 13, color: C.textDim, margin: 0 }}>Sign in to access the dashboard</p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Username</label>
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+              style={{
+                width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${C.border}`,
+                background: C.bg, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box",
+              }}
+              placeholder="Enter username" autoFocus />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              style={{
+                width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${C.border}`,
+                background: C.bg, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box",
+              }}
+              placeholder="Enter password" />
+          </div>
+          {error && (
+            <div style={{ padding: "10px 14px", borderRadius: 8, background: `${C.danger}15`, border: `1px solid ${C.danger}30`, color: C.danger, fontSize: 13, marginBottom: 16, textAlign: "center" }}>
+              {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading} style={{
+            width: "100%", padding: "12px", borderRadius: 10, border: "none", cursor: loading ? "wait" : "pointer",
+            background: `linear-gradient(135deg, ${C.accent} 0%, ${C.pro} 100%)`,
+            color: "#000", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          }}>
+            <Lock size={15} /> {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 // ─── Theme ───────────────────────────────────
@@ -139,7 +233,44 @@ const LoadingSpinner = () => (
 
 // ─── Main Dashboard ──────────────────────────
 
-export default function YayaDashboard() {
+export default function App() {
+  const [authenticated, setAuthenticated] = useState(null); // null = checking
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getToken();
+      if (!token) { setAuthenticated(false); return; }
+      try {
+        const res = await fetch(`${API_BASE}/auth/check`, {
+          headers: { "x-auth-token": token },
+        });
+        const data = await res.json();
+        setAuthenticated(data.authenticated);
+        if (!data.authenticated) clearToken();
+      } catch {
+        setAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  if (authenticated === null) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0e17", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <RefreshCw size={24} color="#06b6d4" style={{ animation: "spin 1s linear infinite" }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginScreen onLogin={() => setAuthenticated(true)} />;
+  }
+
+  return <YayaDashboard onLogout={() => { clearToken(); setAuthenticated(false); }} />;
+}
+
+function YayaDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [timePeriod, setTimePeriod] = useState("today");
   const [now, setNow] = useState(new Date());
@@ -323,6 +454,12 @@ export default function YayaDashboard() {
                 background: `${C.accent}15`, border: `1px solid ${C.accent}30`, cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600,
               }}>
                 <RefreshCw size={13} /> Refresh
+              </button>
+              <button onClick={onLogout} style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8,
+                background: `${C.danger}15`, border: `1px solid ${C.danger}30`, cursor: "pointer", color: C.danger, fontSize: 12, fontWeight: 600,
+              }}>
+                <LogOut size={13} /> Logout
               </button>
               <div style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,

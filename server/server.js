@@ -1,15 +1,86 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-// ─── Serve React Frontend ────────────────────
+// ─── Authentication ──────────────────────────
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+// Simple token-based auth
+const activeSessions = new Map();
+
+function generateToken() {
+  return crypto.randomBytes(48).toString('hex');
+}
+
+function authMiddleware(req, res, next) {
+  // Allow login endpoint
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/check') return next();
+  
+  // Check for token in header or cookie
+  const token = req.headers['x-auth-token'] || req.query.token;
+  
+  if (!token || !activeSessions.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  const session = activeSessions.get(token);
+  // Session expires after 24 hours
+  if (Date.now() - session.created > 24 * 60 * 60 * 1000) {
+    activeSessions.delete(token);
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  
+  next();
+}
+
+// Login endpoint
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    const token = generateToken();
+    activeSessions.set(token, { user: username, created: Date.now() });
+    return res.json({ success: true, token });
+  }
+  
+  // Rate limiting: small delay on failed attempts
+  setTimeout(() => {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }, 1000);
+});
+
+app.get('/api/auth/check', (req, res) => {
+  const token = req.headers['x-auth-token'];
+  if (token && activeSessions.has(token)) {
+    const session = activeSessions.get(token);
+    if (Date.now() - session.created < 24 * 60 * 60 * 1000) {
+      return res.json({ authenticated: true, user: session.user });
+    }
+    activeSessions.delete(token);
+  }
+  res.json({ authenticated: false });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const token = req.headers['x-auth-token'];
+  if (token) activeSessions.delete(token);
+  res.json({ success: true });
+});
+
+// ─── Serve React Frontend (public) ───────────
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Protect all /api routes (except auth) ───
+app.use('/api', authMiddleware);
 
 // ─── Database Connection ─────────────────────
 const pool = new Pool({
