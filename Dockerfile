@@ -1,15 +1,15 @@
 # ── Build React Frontend ──
-FROM node:20-alpine AS frontend
+FROM node:18-alpine AS frontend
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
 # ── Production Server ──
-FROM node:20-alpine
+FROM node:18-alpine
 WORKDIR /app
-COPY server/package*.json ./
+COPY server/package.json ./
 RUN npm install --omit=dev
 COPY server/ ./
 COPY --from=frontend /app/frontend/build ./public
