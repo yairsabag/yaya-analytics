@@ -43,7 +43,7 @@ function authMiddleware(req, res, next) {
 }
 
 // Login endpoint
-app.post('/auth/login', (req, res) => {
+app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   
   if (username === ADMIN_USER && password === ADMIN_PASS) {
@@ -58,7 +58,7 @@ app.post('/auth/login', (req, res) => {
   }, 1000);
 });
 
-app.get('/auth/check', (req, res) => {
+app.get('/api/auth/check', (req, res) => {
   const token = req.headers['x-auth-token'];
   if (token && activeSessions.has(token)) {
     const session = activeSessions.get(token);
