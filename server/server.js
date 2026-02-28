@@ -23,7 +23,7 @@ function generateToken() {
 
 function authMiddleware(req, res, next) {
   // Allow login endpoint
-  if (req.path === '/auth/login' || req.path === '/auth/check') return next();
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/check') return next();
   
   // Check for token in header or cookie
   const token = req.headers['x-auth-token'] || req.query.token;
@@ -401,6 +401,16 @@ app.get('/api/metrics/bot-analytics', async (req, res) => {
       FROM public.bot_analytics WHERE timestamp >= CURRENT_DATE - INTERVAL '30 days'
       GROUP BY DATE(timestamp) ORDER BY day DESC
     `);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Signups ─────────────────────────────────
+app.get('/api/metrics/signups', async (req, res) => {
+  try {
+    const [data] = await query('SELECT * FROM public.v_signups');
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

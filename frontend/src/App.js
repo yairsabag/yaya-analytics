@@ -289,6 +289,7 @@ function YayaDashboard({ onLogout }) {
   const [qaIssues, setQaIssues] = useState([]);
   const [qaSummary, setQaSummary] = useState(null);
   const [userGrowth, setUserGrowth] = useState([]);
+  const [signups, setSignups] = useState({ today: 0, week: 0, month: 0, total: 0 });
   const [languages, setLanguages] = useState([]);
 
   // ─── Fetch All Data ────────────────────────
@@ -321,6 +322,7 @@ function YayaDashboard({ onLogout }) {
       qaSumData,
       growthData,
       langData,
+      signupsData,
     ] = await Promise.all([
       apiFetch("/metrics/overview"),
       apiFetch("/metrics/activity-trend"),
@@ -337,6 +339,7 @@ function YayaDashboard({ onLogout }) {
       apiFetch("/qa/summary"),
       apiFetch("/metrics/user-growth"),
       apiFetch("/metrics/languages"),
+      apiFetch("/metrics/signups"),
     ]);
 
     if (overviewData) setOverview(overviewData);
@@ -354,6 +357,7 @@ function YayaDashboard({ onLogout }) {
     if (qaSumData) setQaSummary(qaSumData);
     if (growthData) setUserGrowth(growthData.map(d => ({ ...d, signup_date: new Date(d.signup_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), cumulative_users: parseInt(d.cumulative_users), new_users: parseInt(d.new_users) })));
     if (langData) setLanguages(langData);
+    if (signupsData) setSignups(signupsData);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -507,6 +511,8 @@ function YayaDashboard({ onLogout }) {
                   <StatCard icon={MessageCircle} label="Messages Today" value={overview.messagesToday}
                     sub={`Avg ${overview.avgMessagesPerUser} per user`} color={C.chart3} />
                   <StatCard icon={Zap} label="Tool Executions Today" value={totalToolUsage} color={C.chart5} />
+                  <StatCard icon={Users} label="New Signups Today" value={parseInt(signups.today) || 0}
+                    sub={`${parseInt(signups.week) || 0} this week · ${parseInt(signups.month) || 0} this month`} color={C.chart4} />
                   <StatCard icon={AlertTriangle} label="Open Issues" value={parseInt(openIssues) || 0}
                     sub={`${parseInt(highSeverity) || 0} high severity`}
                     color={openIssues > 0 ? C.danger : C.success} />
@@ -677,6 +683,13 @@ function YayaDashboard({ onLogout }) {
                       </ResponsiveContainer>
                     ) : <div style={{ color: C.textDim, textAlign: "center", padding: 40 }}>No data</div>}
                   </div>
+                </div>
+
+                {/* New Signups */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 28 }}>
+                  <StatCard icon={Users} label="New Signups Today" value={parseInt(signups.today) || 0} color={C.chart4} />
+                  <StatCard icon={Users} label="New Signups This Week" value={parseInt(signups.week) || 0} color={C.accent} />
+                  <StatCard icon={Users} label="New Signups This Month" value={parseInt(signups.month) || 0} color={C.chart2} />
                 </div>
 
                 {/* User Growth Chart */}
