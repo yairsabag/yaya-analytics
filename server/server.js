@@ -463,6 +463,51 @@ app.get('/api/activity/returning-users', async (req, res) => {
   }
 });
 
+// ─── Country detection from phone prefix ─────
+// Sorted longest-first so we match the most specific code
+const COUNTRY_CODES = [
+  ['998','Uzbekistan','🇺🇿'],['996','Kyrgyzstan','🇰🇬'],['995','Georgia','🇬🇪'],['994','Azerbaijan','🇦🇿'],['993','Turkmenistan','🇹🇲'],['992','Tajikistan','🇹🇯'],
+  ['977','Nepal','🇳🇵'],['976','Mongolia','🇲🇳'],['975','Bhutan','🇧🇹'],['974','Qatar','🇶🇦'],['973','Bahrain','🇧🇭'],['972','Israel','🇮🇱'],['971','UAE','🇦🇪'],['970','Palestine','🇵🇸'],
+  ['968','Oman','🇴🇲'],['967','Yemen','🇾🇪'],['966','Saudi Arabia','🇸🇦'],['965','Kuwait','🇰🇼'],['964','Iraq','🇮🇶'],['963','Syria','🇸🇾'],['962','Jordan','🇯🇴'],['961','Lebanon','🇱🇧'],['960','Maldives','🇲🇻'],
+  ['886','Taiwan','🇹🇼'],['880','Bangladesh','🇧🇩'],['856','Laos','🇱🇦'],['855','Cambodia','🇰🇭'],['853','Macau','🇲🇴'],['852','Hong Kong','🇭🇰'],['850','North Korea','🇰🇵'],
+  ['692','Marshall Is','🇲🇭'],['691','Micronesia','🇫🇲'],['690','Tokelau','🇹🇰'],['689','Fr Polynesia','🇵🇫'],['686','Kiribati','🇰🇮'],['685','Samoa','🇼🇸'],['679','Fiji','🇫🇯'],['673','Brunei','🇧🇳'],['670','Timor-Leste','🇹🇱'],
+  ['599','Curaçao','🇨🇼'],['598','Uruguay','🇺🇾'],['597','Suriname','🇸🇷'],['595','Paraguay','🇵🇾'],['593','Ecuador','🇪🇨'],['592','Guyana','🇬🇾'],['591','Bolivia','🇧🇴'],['590','Guadeloupe','🇬🇵'],
+  ['507','Panama','🇵🇦'],['506','Costa Rica','🇨🇷'],['505','Nicaragua','🇳🇮'],['504','Honduras','🇭🇳'],['503','El Salvador','🇸🇻'],['502','Guatemala','🇬🇹'],['501','Belize','🇧🇿'],['500','Falklands','🇫🇰'],
+  ['423','Liechtenstein','🇱🇮'],['421','Slovakia','🇸🇰'],['420','Czechia','🇨🇿'],
+  ['389','N Macedonia','🇲🇰'],['387','Bosnia','🇧🇦'],['386','Slovenia','🇸🇮'],['385','Croatia','🇭🇷'],['383','Kosovo','🇽🇰'],['382','Montenegro','🇲🇪'],['381','Serbia','🇷🇸'],['380','Ukraine','🇺🇦'],
+  ['378','San Marino','🇸🇲'],['377','Monaco','🇲🇨'],['376','Andorra','🇦🇩'],['375','Belarus','🇧🇾'],['374','Armenia','🇦🇲'],['373','Moldova','🇲🇩'],['372','Estonia','🇪🇪'],['371','Latvia','🇱🇻'],['370','Lithuania','🇱🇹'],
+  ['359','Bulgaria','🇧🇬'],['358','Finland','🇫🇮'],['357','Cyprus','🇨🇾'],['356','Malta','🇲🇹'],['355','Albania','🇦🇱'],['353','Ireland','🇮🇪'],['352','Luxembourg','🇱🇺'],['351','Portugal','🇵🇹'],['350','Gibraltar','🇬🇮'],
+  ['291','Eritrea','🇪🇷'],['265','Malawi','🇲🇼'],['263','Zimbabwe','🇿🇼'],['260','Zambia','🇿🇲'],['256','Uganda','🇺🇬'],['255','Tanzania','🇹🇿'],['254','Kenya','🇰🇪'],['251','Ethiopia','🇪🇹'],['250','Rwanda','🇷🇼'],
+  ['249','Sudan','🇸🇩'],['248','Seychelles','🇸🇨'],['234','Nigeria','🇳🇬'],['233','Ghana','🇬🇭'],['230','Mauritius','🇲🇺'],['225','Ivory Coast','🇨🇮'],['221','Senegal','🇸🇳'],['220','Gambia','🇬🇲'],['216','Tunisia','🇹🇳'],['213','Algeria','🇩🇿'],['212','Morocco','🇲🇦'],
+  ['98','Iran','🇮🇷'],['95','Myanmar','🇲🇲'],['94','Sri Lanka','🇱🇰'],['93','Afghanistan','🇦🇫'],['92','Pakistan','🇵🇰'],['91','India','🇮🇳'],['90','Turkey','🇹🇷'],
+  ['86','China','🇨🇳'],['84','Vietnam','🇻🇳'],['82','South Korea','🇰🇷'],['81','Japan','🇯🇵'],['66','Thailand','🇹🇭'],['65','Singapore','🇸🇬'],['64','New Zealand','🇳🇿'],['63','Philippines','🇵🇭'],['62','Indonesia','🇮🇩'],['61','Australia','🇦🇺'],['60','Malaysia','🇲🇾'],
+  ['58','Venezuela','🇻🇪'],['57','Colombia','🇨🇴'],['56','Chile','🇨🇱'],['55','Brazil','🇧🇷'],['54','Argentina','🇦🇷'],['53','Cuba','🇨🇺'],['52','Mexico','🇲🇽'],['51','Peru','🇵🇪'],
+  ['49','Germany','🇩🇪'],['48','Poland','🇵🇱'],['47','Norway','🇳🇴'],['46','Sweden','🇸🇪'],['45','Denmark','🇩🇰'],['44','UK','🇬🇧'],['43','Austria','🇦🇹'],['41','Switzerland','🇨🇭'],['40','Romania','🇷🇴'],
+  ['39','Italy','🇮🇹'],['36','Hungary','🇭🇺'],['34','Spain','🇪🇸'],['33','France','🇫🇷'],['32','Belgium','🇧🇪'],['31','Netherlands','🇳🇱'],['30','Greece','🇬🇷'],
+  ['27','South Africa','🇿🇦'],['20','Egypt','🇪🇬'],['7','Russia','🇷🇺'],['1','USA/Canada','🇺🇸'],
+];
+
+function countryFromWaId(waId) {
+  const num = String(waId || '').replace(/\D/g, '');
+  for (const [code, country, flag] of COUNTRY_CODES) {
+    if (num.startsWith(code)) return { country, flag, code };
+  }
+  return { country: 'Unknown', flag: '🌍', code: '' };
+}
+
+app.get('/api/activity/newest-users', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_newest_users');
+    const enriched = data.map(u => {
+      const c = countryFromWaId(u.wa_id);
+      return { ...u, country: c.country, flag: c.flag };
+    });
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Catch-all: serve React app ──────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

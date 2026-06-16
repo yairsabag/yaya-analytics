@@ -309,6 +309,7 @@ function YayaDashboard({ onLogout }) {
   const [nearLimits, setNearLimits] = useState([]);
   const [churnRisk, setChurnRisk] = useState([]);
   const [returningUsers, setReturningUsers] = useState([]);
+  const [newestUsers, setNewestUsers] = useState([]);
   const [languages, setLanguages] = useState([]);
 
   // ─── Fetch All Data ────────────────────────
@@ -347,6 +348,7 @@ function YayaDashboard({ onLogout }) {
       nearLimitsData,
       churnData,
       returningData,
+      newestData,
     ] = await Promise.all([
       apiFetch("/metrics/overview"),
       apiFetch("/metrics/activity-trend"),
@@ -369,6 +371,7 @@ function YayaDashboard({ onLogout }) {
       apiFetch("/activity/near-limits"),
       apiFetch("/activity/churn-risk"),
       apiFetch("/activity/returning-users"),
+      apiFetch("/activity/newest-users"),
     ]);
 
     if (overviewData) setOverview(overviewData);
@@ -392,6 +395,7 @@ function YayaDashboard({ onLogout }) {
     if (nearLimitsData) setNearLimits(nearLimitsData);
     if (churnData) setChurnRisk(churnData);
     if (returningData) setReturningUsers(returningData);
+    if (newestData) setNewestUsers(newestData);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -663,6 +667,32 @@ function YayaDashboard({ onLogout }) {
             {/* ════════ LIVE ACTIVITY TAB ════════ */}
             {activeTab === "activity" && (
               <div>
+                {/* Newest Users */}
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, marginBottom: 16 }}>
+                  <SectionTitle icon={Users} right={
+                    <span style={{ fontSize: 12, color: C.textDim }}>20 most recent</span>
+                  }>Newest Users</SectionTitle>
+                  {newestUsers.length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+                      {newestUsers.map((u, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: C.surfaceHover, border: `1px solid ${C.border}` }}>
+                          <div style={{ fontSize: 26, flexShrink: 0 }}>{u.flag}</div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name || "Anonymous"}</div>
+                            <div style={{ fontSize: 11, color: C.textDim, display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>{u.country}</span>
+                              <span style={{ color: C.borderLight }}>·</span>
+                              <span style={{ textTransform: "uppercase" }}>{u.language}</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{timeAgo(u.created_at)}</div>
+                          </div>
+                          <PlanBadge plan={u.plan} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : <div style={{ color: C.textDim, textAlign: "center", padding: 40 }}>No users yet</div>}
+                </div>
+
                 {/* Recent Users + Insights row */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                   {/* Last 10 Active Users */}
