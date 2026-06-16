@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from "recharts";
-import { Bell, List, Calendar, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Search, Mic, Image, DollarSign, Activity, Eye, ArrowUp, ArrowDown, Zap, Shield, MessageCircle, BarChart3, RefreshCw, Wifi, WifiOff, Apple, Globe, Lock, LogOut } from "lucide-react";
+import { Bell, List, Calendar, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Search, Mic, Image, DollarSign, Activity, Eye, ArrowUp, ArrowDown, Zap, Shield, MessageCircle, BarChart3, RefreshCw, Wifi, WifiOff, Apple, Globe, Lock, LogOut, Radio, UserCheck, UserX, Hourglass } from "lucide-react";
 
 // ─── API Configuration ───────────────────────
 const API_BASE = window.location.hostname === "localhost" ? "http://localhost:3001/api" : "/api";
@@ -133,6 +133,20 @@ const TOOL_ICONS = {
 };
 
 const PLAN_COLORS = { basic: C.basic, pro: C.pro, ultimate: C.ultimate };
+
+// ─── Time ago helper ─────────────────────────
+const timeAgo = (dateStr) => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
 
 // ─── Reusable Components ─────────────────────
 
@@ -290,6 +304,11 @@ function YayaDashboard({ onLogout }) {
   const [qaSummary, setQaSummary] = useState(null);
   const [userGrowth, setUserGrowth] = useState([]);
   const [signups, setSignups] = useState({ today: 0, week: 0, month: 0, total: 0 });
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [recentMessages, setRecentMessages] = useState([]);
+  const [nearLimits, setNearLimits] = useState([]);
+  const [churnRisk, setChurnRisk] = useState([]);
+  const [returningUsers, setReturningUsers] = useState([]);
   const [languages, setLanguages] = useState([]);
 
   // ─── Fetch All Data ────────────────────────
@@ -323,6 +342,11 @@ function YayaDashboard({ onLogout }) {
       growthData,
       langData,
       signupsData,
+      recentUsersData,
+      recentMessagesData,
+      nearLimitsData,
+      churnData,
+      returningData,
     ] = await Promise.all([
       apiFetch("/metrics/overview"),
       apiFetch("/metrics/activity-trend"),
@@ -340,6 +364,11 @@ function YayaDashboard({ onLogout }) {
       apiFetch("/metrics/user-growth"),
       apiFetch("/metrics/languages"),
       apiFetch("/metrics/signups"),
+      apiFetch("/activity/recent-users"),
+      apiFetch("/activity/recent-messages"),
+      apiFetch("/activity/near-limits"),
+      apiFetch("/activity/churn-risk"),
+      apiFetch("/activity/returning-users"),
     ]);
 
     if (overviewData) setOverview(overviewData);
@@ -358,6 +387,11 @@ function YayaDashboard({ onLogout }) {
     if (growthData) setUserGrowth(growthData.map(d => ({ ...d, signup_date: new Date(d.signup_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), cumulative_users: parseInt(d.cumulative_users), new_users: parseInt(d.new_users) })));
     if (langData) setLanguages(langData);
     if (signupsData) setSignups(signupsData);
+    if (recentUsersData) setRecentUsers(recentUsersData);
+    if (recentMessagesData) setRecentMessages(recentMessagesData);
+    if (nearLimitsData) setNearLimits(nearLimitsData);
+    if (churnData) setChurnRisk(churnData);
+    if (returningData) setReturningUsers(returningData);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -393,6 +427,7 @@ function YayaDashboard({ onLogout }) {
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Activity },
+    { id: "activity", label: "Live Activity", icon: Radio },
     { id: "users", label: "Users & Plans", icon: Users },
     { id: "tools", label: "Tool Usage", icon: BarChart3 },
     { id: "quality", label: "AI Quality", icon: Shield },
@@ -621,6 +656,152 @@ function YayaDashboard({ onLogout }) {
                       </div>
                     ) : <div style={{ color: C.textDim, textAlign: "center", padding: 40 }}>No tool usage today</div>}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ════════ LIVE ACTIVITY TAB ════════ */}
+            {activeTab === "activity" && (
+              <div>
+                {/* Recent Users + Insights row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  {/* Last 10 Active Users */}
+                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24 }}>
+                    <SectionTitle icon={UserCheck}>Last 10 Active Users</SectionTitle>
+                    {recentUsers.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {recentUsers.map((u, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: C.surfaceHover, border: `1px solid ${C.border}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: `${PLAN_COLORS[u.plan] || C.accent}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: PLAN_COLORS[u.plan] || C.accent, flexShrink: 0 }}>
+                                {(u.name || "?").charAt(0).toUpperCase()}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name || "Anonymous"}</div>
+                                <div style={{ fontSize: 11, color: C.textDim }}>{u.total_messages} msgs · {u.language}</div>
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
+                              <PlanBadge plan={u.plan} />
+                              <div style={{ fontSize: 11, color: C.textDim, marginTop: 3 }}>{timeAgo(u.last_seen)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div style={{ color: C.textDim, textAlign: "center", padding: 40 }}>No recent activity</div>}
+                  </div>
+
+                  {/* Insights stack */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {/* Near limits - upgrade candidates */}
+                    <div style={{ background: C.surface, border: `1px solid ${C.pro}25`, borderRadius: 16, padding: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <Zap size={16} color={C.pro} />
+                        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Near Limits (upgrade candidates)</h3>
+                      </div>
+                      {nearLimits.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {nearLimits.slice(0, 5).map((u, i) => {
+                            const pct = Math.round(u.max_pct);
+                            const over = pct >= 100;
+                            // figure out which limit is the bottleneck
+                            const limits = [
+                              { label: "msgs", pct: u.messages_pct, used: u.messages_used, max: 100 },
+                              { label: "reminders", pct: u.reminders_pct, used: u.reminders_used, max: 10 },
+                              { label: "expenses", pct: u.expenses_pct, used: u.expenses_used, max: 20 },
+                              { label: "voice", pct: u.voice_pct, used: u.voice_used, max: 5 },
+                            ].sort((a, b) => b.pct - a.pct);
+                            const top = limits[0];
+                            return (
+                              <div key={i} style={{ padding: "8px 0", borderBottom: i < Math.min(nearLimits.length, 5) - 1 ? `1px solid ${C.border}` : "none" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 600 }}>{u.name || "Anonymous"}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: over ? C.danger : C.pro }}>
+                                    {over ? "OVER" : `${pct}%`} · {top.label} {top.used}/{top.max}
+                                  </span>
+                                </div>
+                                <div style={{ height: 4, borderRadius: 2, background: C.border }}>
+                                  <div style={{ height: "100%", borderRadius: 2, width: `${Math.min(100, pct)}%`, background: over ? C.danger : C.pro }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : <div style={{ color: C.textDim, fontSize: 12 }}>No one near limits right now</div>}
+                    </div>
+
+                    {/* Churn risk */}
+                    <div style={{ background: C.surface, border: `1px solid ${C.danger}25`, borderRadius: 16, padding: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <UserX size={16} color={C.danger} />
+                        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Churn Risk (gone quiet)</h3>
+                      </div>
+                      {churnRisk.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {churnRisk.slice(0, 4).map((u, i) => (
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                              <span style={{ fontWeight: 600 }}>{u.name || "Anonymous"} <span style={{ color: C.textDim }}>({u.total_messages} msgs)</span></span>
+                              <span style={{ color: C.danger, fontWeight: 700 }}>{Math.round(u.days_silent)}d silent</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <div style={{ color: C.textDim, fontSize: 12 }}>No churn risk detected 🎉</div>}
+                    </div>
+
+                    {/* Returning users */}
+                    <div style={{ background: C.surface, border: `1px solid ${C.success}25`, borderRadius: 16, padding: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <TrendingUp size={16} color={C.success} />
+                        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Returning Users (active today)</h3>
+                      </div>
+                      {returningUsers.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {returningUsers.slice(0, 4).map((u, i) => (
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                              <span style={{ fontWeight: 600 }}>{u.name || "Anonymous"}</span>
+                              <span style={{ color: C.success, fontWeight: 600 }}>{u.total_messages} msgs total</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <div style={{ color: C.textDim, fontSize: 12 }}>No returning users today</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Message Feed */}
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24 }}>
+                  <SectionTitle icon={MessageCircle} right={
+                    <span style={{ fontSize: 12, color: C.textDim }}>Last {recentMessages.length} messages</span>
+                  }>Live Conversation Feed</SectionTitle>
+                  {recentMessages.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 600, overflowY: "auto", paddingRight: 8 }}>
+                      {recentMessages.map((m, i) => {
+                        const isUser = m.sender === "user";
+                        return (
+                          <div key={m.id || i} style={{
+                            display: "flex", flexDirection: isUser ? "row" : "row-reverse", gap: 10, alignItems: "flex-start",
+                          }}>
+                            <div style={{
+                              maxWidth: "75%", padding: "10px 14px", borderRadius: 12,
+                              background: isUser ? C.surfaceHover : `${C.accent}12`,
+                              border: `1px solid ${isUser ? C.border : C.accent + "30"}`,
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: isUser ? C.text : C.accent }}>
+                                  {isUser ? (m.name || "Anonymous") : "🤖 Yaya"}
+                                </span>
+                                {isUser && <PlanBadge plan={m.plan} />}
+                                <span style={{ fontSize: 10, color: C.textDim }}>{timeAgo(m.timestamp)}</span>
+                              </div>
+                              <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                {(m.message || "").length > 300 ? (m.message || "").slice(0, 300) + "…" : m.message}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : <div style={{ color: C.textDim, textAlign: "center", padding: 40 }}>No messages yet</div>}
                 </div>
               </div>
             )}

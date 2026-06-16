@@ -417,6 +417,52 @@ app.get('/api/metrics/signups', async (req, res) => {
   }
 });
 
+// ─── Live Activity ───────────────────────────
+app.get('/api/activity/recent-users', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_recent_active_users');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/activity/recent-messages', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_recent_messages');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/activity/near-limits', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_near_limits');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/activity/churn-risk', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_churn_risk');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/activity/returning-users', async (req, res) => {
+  try {
+    const data = await query('SELECT * FROM public.v_returning_users');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Catch-all: serve React app ──────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
